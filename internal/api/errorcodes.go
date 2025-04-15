@@ -62,6 +62,7 @@ const (
 	ErrorCodeProviderDisabled                  ErrorCode = "provider_disabled"
 	ErrorCodeUserSSOManaged                    ErrorCode = "user_sso_managed"
 	ErrorCodeReauthenticationNeeded            ErrorCode = "reauthentication_needed"
+	ErrorCodeIncorrectCurrentPassword          ErrorCode = "incorrect_current_password"
 	ErrorCodeSamePassword                      ErrorCode = "same_password"
 	ErrorCodeReauthenticationNotValid          ErrorCode = "reauthentication_not_valid"
 	ErrorCodeOTPExpired                        ErrorCode = "otp_expired"

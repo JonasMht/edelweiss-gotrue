@@ -79,6 +79,7 @@ type RequestParams interface {
 		SingleSignOnParams |
 		SmsParams |
 		UserUpdateParams |
+		UserChangePasswordParams |
 		VerifyFactorParams |
 		VerifyParams |
 		adminUserUpdateFactorParams |

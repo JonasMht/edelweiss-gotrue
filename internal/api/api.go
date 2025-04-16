@@ -224,6 +224,7 @@ func NewAPIWithVersion(globalConfig *conf.GlobalConfiguration, db *storage.Conne
 
 		r.With(api.requireAuthentication).Route("/user", func(r *router) {
 			r.Get("/", api.UserGet)
+			r.Get("/auth-info", api.UserAuthInfoGet)
 			r.With(api.limitHandler(
 				// Allow requests at the specified rate per 5 minutes
 				tollbooth.NewLimiter(api.config.RateLimitOtp/(60*5), &limiter.ExpirableOptions{

@@ -82,6 +82,28 @@ func (a *API) UserGet(w http.ResponseWriter, r *http.Request) error {
 	return sendJSON(w, http.StatusOK, user)
 }
 
+// UserAuthGet returns authentication information for a user
+func (a *API) UserAuthInfoGet(w http.ResponseWriter, r *http.Request) error {
+	ctx := r.Context()
+	claims := getClaims(ctx)
+	if claims == nil {
+		return internalServerError("Could not read claims")
+	}
+
+	aud := a.requestAud(ctx, r)
+	audienceFromClaims, _ := claims.GetAudience()
+	if len(audienceFromClaims) == 0 || aud != audienceFromClaims[0] {
+		return badRequestError(ErrorCodeValidationFailed, "Token audience doesn't match request audience")
+	}
+
+	user := getUser(ctx)
+	userAuthInfo := models.UserAuthInfo{
+		HasPassword: user.HasPassword(),
+		IsSSOUser:   user.IsSSOUser,
+	}
+	return sendJSON(w, http.StatusOK, &userAuthInfo)
+}
+
 func (a *API) UserChangePassword(w http.ResponseWriter, r *http.Request) error {
 	ctx := r.Context()
 	db := a.db.WithContext(ctx)

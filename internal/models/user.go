@@ -72,6 +72,12 @@ type User struct {
 	DONTUSEINSTANCEID uuid.UUID `json:"-" db:"instance_id"`
 }
 
+// UserAuthInfo represents the type of authentication which the user uses.
+type UserAuthInfo struct {
+	HasPassword bool `json:"has_password"`
+	IsSSOUser   bool `json:"is_sso_user"`
+}
+
 func NewUserWithPasswordHash(phone, email, passwordHash, aud string, userData map[string]interface{}) (*User, error) {
 	if strings.HasPrefix(passwordHash, crypto.Argon2Prefix) {
 		_, err := crypto.ParseArgon2Hash(passwordHash)

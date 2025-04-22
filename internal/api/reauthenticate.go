@@ -81,7 +81,7 @@ func (a *API) verifyReauthentication(nonce string, tx *storage.Connection, confi
 	var isValid bool
 	if user.GetEmail() != "" {
 		tokenHash := crypto.GenerateTokenHash(user.GetEmail(), nonce)
-		isValid = isOtpValid(tokenHash, user.ReauthenticationToken, user.ReauthenticationSentAt, config.Mailer.OtpExp)
+		isValid, _ = isOtpValid(tokenHash, user.ReauthenticationToken, user.ReauthenticationSentAt, config.Mailer.OtpExp)
 	} else if user.GetPhone() != "" {
 		if config.Sms.IsTwilioVerifyProvider() {
 			smsProvider, _ := sms_provider.GetSmsProvider(*config)
@@ -91,7 +91,7 @@ func (a *API) verifyReauthentication(nonce string, tx *storage.Connection, confi
 			return nil
 		} else {
 			tokenHash := crypto.GenerateTokenHash(user.GetPhone(), nonce)
-			isValid = isOtpValid(tokenHash, user.ReauthenticationToken, user.ReauthenticationSentAt, config.Sms.OtpExp)
+			isValid, _ = isOtpValid(tokenHash, user.ReauthenticationToken, user.ReauthenticationSentAt, config.Sms.OtpExp)
 		}
 	} else {
 		return unprocessableEntityError(ErrorCodeReauthenticationNotValid, "Reauthentication requires an email or a phone number")

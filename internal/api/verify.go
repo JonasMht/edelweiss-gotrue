@@ -3,6 +3,7 @@ package api
 import (
 	"context"
 	"errors"
+	"fmt"
 	"net/http"
 	"net/url"
 	"strconv"
@@ -666,27 +667,31 @@ func (a *API) verifyUserAndToken(conn *storage.Connection, params *VerifyParams,
 	}
 
 	var isValid bool
+	var validationErr error
 
 	smsProvider, _ := sms_provider.GetSmsProvider(*config)
 	switch params.Type {
 	case mail.EmailOTPVerification:
 		// if the type is emailOTPVerification, we'll check both the confirmation_token and recovery_token columns
-		if isOtpValid(tokenHash, user.ConfirmationToken, user.ConfirmationSentAt, config.Mailer.OtpExp) {
+		if valid, _ := isOtpValid(tokenHash, user.ConfirmationToken, user.ConfirmationSentAt, config.Mailer.OtpExp); valid {
 			isValid = true
+			validationErr = nil
 			params.Type = mail.SignupVerification
-		} else if isOtpValid(tokenHash, user.RecoveryToken, user.RecoverySentAt, config.Mailer.OtpExp) {
-			isValid = true
-			params.Type = mail.MagicLinkVerification
 		} else {
-			isValid = false
+			params.Type = mail.MagicLinkVerification
+			isValid, validationErr = isOtpValid(tokenHash, user.RecoveryToken, user.RecoverySentAt, config.Mailer.OtpExp)
 		}
 	case mail.SignupVerification, mail.InviteVerification:
-		isValid = isOtpValid(tokenHash, user.ConfirmationToken, user.ConfirmationSentAt, config.Mailer.OtpExp)
+		isValid, validationErr = isOtpValid(tokenHash, user.ConfirmationToken, user.ConfirmationSentAt, config.Mailer.OtpExp)
 	case mail.RecoveryVerification, mail.MagicLinkVerification:
-		isValid = isOtpValid(tokenHash, user.RecoveryToken, user.RecoverySentAt, config.Mailer.OtpExp)
+		isValid, validationErr = isOtpValid(tokenHash, user.RecoveryToken, user.RecoverySentAt, config.Mailer.OtpExp)
 	case mail.EmailChangeVerification:
-		isValid = isOtpValid(tokenHash, user.EmailChangeTokenCurrent, user.EmailChangeSentAt, config.Mailer.OtpExp) ||
-			isOtpValid(tokenHash, user.EmailChangeTokenNew, user.EmailChangeSentAt, config.Mailer.OtpExp)
+		if valid, _ := isOtpValid(tokenHash, user.EmailChangeTokenCurrent, user.EmailChangeSentAt, config.Mailer.OtpExp); valid {
+			isValid = true
+			validationErr = nil
+		} else {
+			isValid, validationErr = isOtpValid(tokenHash, user.EmailChangeTokenNew, user.EmailChangeSentAt, config.Mailer.OtpExp)
+		}
 	case phoneChangeVerification, smsVerification:
 		if testOTP, ok := config.Sms.GetTestOTP(params.Phone, time.Now()); ok {
 			if params.Token == testOTP {
@@ -709,21 +714,31 @@ func (a *API) verifyUserAndToken(conn *storage.Connection, params *VerifyParams,
 			}
 			return user, nil
 		}
-		isValid = isOtpValid(tokenHash, expectedToken, sentAt, config.Sms.OtpExp)
+		isValid, validationErr = isOtpValid(tokenHash, expectedToken, sentAt, config.Sms.OtpExp)
 	}
 
 	if !isValid {
-		return nil, forbiddenError(ErrorCodeOTPExpired, "Token has expired or is invalid").WithInternalMessage("token has expired or is invalid")
+		return nil, forbiddenError(ErrorCodeOTPExpired, "Token has expired or is invalid").WithInternalMessage(
+			fmt.Sprintf("token has expired or is invalid for %s verification with error: %v", params.Type, validationErr))
 	}
 	return user, nil
 }
 
 // isOtpValid checks the actual otp sent against the expected otp and ensures that it's within the valid window
-func isOtpValid(actual, expected string, sentAt *time.Time, otpExp uint) bool {
+func isOtpValid(actual, expected string, sentAt *time.Time, otpExp uint) (bool, error) {
 	if expected == "" || sentAt == nil {
-		return false
+		return false, errors.New("both expected token and sentAt are absent")
 	}
-	return !isOtpExpired(sentAt, otpExp) && ((actual == expected) || ("pkce_"+actual == expected))
+	if isOtpExpired(sentAt, otpExp) {
+		return false, errors.New("token has expired")
+	}
+	if expected == "" && actual != "" {
+		return false, errors.New("expected token is empty")
+	}
+	if (actual != expected) && ("pkce_"+actual != expected) {
+		return false, errors.New("mismatched token")
+	}
+	return true, nil
 }
 
 func isOtpExpired(sentAt *time.Time, otpExp uint) bool {

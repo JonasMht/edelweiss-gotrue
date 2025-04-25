@@ -684,7 +684,12 @@ func (a *API) verifyUserAndToken(conn *storage.Connection, params *VerifyParams,
 	case mail.SignupVerification, mail.InviteVerification:
 		isValid, validationErr = isOtpValid(tokenHash, user.ConfirmationToken, user.ConfirmationSentAt, config.Mailer.OtpExp)
 	case mail.RecoveryVerification, mail.MagicLinkVerification:
-		isValid, validationErr = isOtpValid(tokenHash, user.RecoveryToken, user.RecoverySentAt, config.Mailer.OtpExp)
+		if user.ConfirmationToken != "" {
+			// New sign up
+			isValid, validationErr = isOtpValid(tokenHash, user.ConfirmationToken, user.ConfirmationSentAt, config.Mailer.OtpExp)
+		} else {
+			isValid, validationErr = isOtpValid(tokenHash, user.RecoveryToken, user.RecoverySentAt, config.Mailer.OtpExp)
+		}
 	case mail.EmailChangeVerification:
 		if valid, _ := isOtpValid(tokenHash, user.EmailChangeTokenCurrent, user.EmailChangeSentAt, config.Mailer.OtpExp); valid {
 			isValid = true

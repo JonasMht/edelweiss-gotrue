@@ -66,22 +66,35 @@ func adminCreateUser(config *conf.GlobalConfiguration, args []string) {
 	defer db.Close()
 
 	aud := getAudience(config)
-	if user, err := models.IsDuplicatedEmail(db, args[0], aud, nil); user != nil {
-		logrus.Fatalf("Error creating new user: user already exists")
+	var user *models.User
+	is_new_user := true
+	if existing_user, err := models.IsDuplicatedEmail(db, args[0], aud, nil); existing_user != nil {
+		user = existing_user
+		if err := user.SetPassword(db.Context(), args[1], config.Security.DBEncryption.Encrypt, config.Security.DBEncryption.EncryptionKeyID, config.Security.DBEncryption.EncryptionKey); err != nil {
+			logrus.Fatalf("Error setting password: %+v", err)
+		}
+		is_new_user = false
 	} else if err != nil {
 		logrus.Fatalf("Error checking user email: %+v", err)
+	} else {
+		user, err = models.NewUser("", args[0], args[1], aud, nil)
+		if err != nil {
+			logrus.Fatalf("Error creating new user: %+v", err)
+		}
 	}
 
-	user, err := models.NewUser("", args[0], args[1], aud, nil)
-	if err != nil {
-		logrus.Fatalf("Error creating new user: %+v", err)
-	}
 	user.IsNonDefaultPassword = true
 
 	err = db.Transaction(func(tx *storage.Connection) error {
 		var terr error
-		if terr = tx.Create(user); terr != nil {
-			return terr
+		if is_new_user {
+			if terr = tx.Create(user); terr != nil {
+				return terr
+			}
+		} else {
+			if terr = tx.Update(user); terr != nil {
+				return terr
+			}
 		}
 
 		if len(args) > 2 {
@@ -94,7 +107,7 @@ func adminCreateUser(config *conf.GlobalConfiguration, args []string) {
 			}
 		}
 
-		if config.Mailer.Autoconfirm || autoconfirm {
+		if is_new_user && (config.Mailer.Autoconfirm || autoconfirm) {
 			if terr = user.Confirm(tx); terr != nil {
 				return terr
 			}
@@ -102,10 +115,10 @@ func adminCreateUser(config *conf.GlobalConfiguration, args []string) {
 		return nil
 	})
 	if err != nil {
-		logrus.Fatalf("Unable to create user (%s): %+v", args[0], err)
+		logrus.Fatalf("Unable to upsert user (%s): %+v", args[0], err)
 	}
 
-	logrus.Infof("Created user: %s", args[0])
+	logrus.Infof("Upsert user: %s", args[0])
 }
 
 func adminDeleteUser(config *conf.GlobalConfiguration, args []string) {

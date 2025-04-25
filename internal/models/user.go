@@ -26,9 +26,10 @@ type User struct {
 	Email     storage.NullString `json:"email" db:"email"`
 	IsSSOUser bool               `json:"-" db:"is_sso_user"`
 
-	EncryptedPassword *string    `json:"-" db:"encrypted_password"`
-	EmailConfirmedAt  *time.Time `json:"email_confirmed_at,omitempty" db:"email_confirmed_at"`
-	InvitedAt         *time.Time `json:"invited_at,omitempty" db:"invited_at"`
+	EncryptedPassword    *string    `json:"-" db:"encrypted_password"`
+	EmailConfirmedAt     *time.Time `json:"email_confirmed_at,omitempty" db:"email_confirmed_at"`
+	InvitedAt            *time.Time `json:"invited_at,omitempty" db:"invited_at"`
+	IsNonDefaultPassword bool       `json:"-" db:"is_non_default_password"`
 
 	Phone            storage.NullString `json:"phone" db:"phone"`
 	PhoneConfirmedAt *time.Time         `json:"phone_confirmed_at,omitempty" db:"phone_confirmed_at"`
@@ -74,8 +75,10 @@ type User struct {
 
 // UserAuthInfo represents the type of authentication which the user uses.
 type UserAuthInfo struct {
-	HasPassword bool `json:"has_password"`
-	IsSSOUser   bool `json:"is_sso_user"`
+	HasPassword          bool `json:"has_password"`
+	IsSSOUser            bool `json:"is_sso_user"`
+	IsNonDefaultPassword bool `json:"is_non_default_password"`
+	IsSupabaseAdmin      bool `json:"is_supabase_admin"`
 }
 
 func NewUserWithPasswordHash(phone, email, passwordHash, aud string, userData map[string]interface{}) (*User, error) {
@@ -365,7 +368,7 @@ func (u *User) UpdatePassword(tx *storage.Connection, sessionID *uuid.UUID) erro
 	u.ReauthenticationToken = ""
 	u.ReauthenticationSentAt = nil
 
-	if err := tx.UpdateOnly(u, "encrypted_password", "confirmation_token", "confirmation_sent_at", "recovery_token", "recovery_sent_at", "email_change_token_current", "email_change_token_new", "email_change_sent_at", "phone_change_token", "phone_change_sent_at", "reauthentication_token", "reauthentication_sent_at"); err != nil {
+	if err := tx.UpdateOnly(u, "encrypted_password", "confirmation_token", "confirmation_sent_at", "recovery_token", "recovery_sent_at", "email_change_token_current", "email_change_token_new", "email_change_sent_at", "phone_change_token", "phone_change_sent_at", "reauthentication_token", "reauthentication_sent_at", "is_non_default_password"); err != nil {
 		return err
 	}
 

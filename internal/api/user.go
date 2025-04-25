@@ -98,8 +98,10 @@ func (a *API) UserAuthInfoGet(w http.ResponseWriter, r *http.Request) error {
 
 	user := getUser(ctx)
 	userAuthInfo := models.UserAuthInfo{
-		HasPassword: user.HasPassword(),
-		IsSSOUser:   user.IsSSOUser,
+		HasPassword:          user.HasPassword(),
+		IsSSOUser:            user.IsSSOUser,
+		IsNonDefaultPassword: user.IsNonDefaultPassword,
+		IsSupabaseAdmin:      user.HasRole("supabase_admin"),
 	}
 	return sendJSON(w, http.StatusOK, &userAuthInfo)
 }
@@ -130,7 +132,7 @@ func (a *API) UserChangePassword(w http.ResponseWriter, r *http.Request) error {
 		return err
 	}
 
-	if user.HasPassword() {
+	if user.IsNonDefaultPassword {
 		isCurrentPasswordCorrect, _, err := user.Authenticate(ctx, db, current_password, config.Security.DBEncryption.DecryptionKeys, false, "")
 		if err != nil {
 			return err
@@ -150,6 +152,7 @@ func (a *API) UserChangePassword(w http.ResponseWriter, r *http.Request) error {
 	if err := user.SetPassword(ctx, password, config.Security.DBEncryption.Encrypt, config.Security.DBEncryption.EncryptionKeyID, config.Security.DBEncryption.EncryptionKey); err != nil {
 		return err
 	}
+	user.IsNonDefaultPassword = true
 
 	err := db.Transaction(func(tx *storage.Connection) error {
 		var terr error

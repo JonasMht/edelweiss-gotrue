@@ -34,7 +34,6 @@ func (p *RecoverParams) Validate() error {
 func (a *API) Recover(w http.ResponseWriter, r *http.Request) error {
 	ctx := r.Context()
 	db := a.db.WithContext(ctx)
-	config := a.config
 	params := &RecoverParams{}
 	if err := retrieveRequestParams(r, params); err != nil {
 		return err
@@ -63,10 +62,7 @@ func (a *API) Recover(w http.ResponseWriter, r *http.Request) error {
 		}
 	}
 
-	if err := user.SetPassword(ctx, "", config.Security.DBEncryption.Encrypt, config.Security.DBEncryption.EncryptionKeyID, config.Security.DBEncryption.EncryptionKey); err != nil {
-		return err
-	}
-
+	user.IsNonDefaultPassword = false
 	err = db.Transaction(func(tx *storage.Connection) error {
 		var sessionID *uuid.UUID
 		if session != nil {

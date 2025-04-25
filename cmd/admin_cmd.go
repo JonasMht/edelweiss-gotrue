@@ -76,6 +76,7 @@ func adminCreateUser(config *conf.GlobalConfiguration, args []string) {
 	if err != nil {
 		logrus.Fatalf("Error creating new user: %+v", err)
 	}
+	user.IsNonDefaultPassword = true
 
 	err = db.Transaction(func(tx *storage.Connection) error {
 		var terr error

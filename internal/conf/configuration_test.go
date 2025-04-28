@@ -92,7 +92,7 @@ func TestPasswordRequiredCharactersDecode(t *testing.T) {
 	}
 
 	for i, example := range examples {
-		var into PasswordRequiredCharacters
+		var into PasswordRequiredCharactersRegex
 		require.NoError(t, into.Decode(example.Value), "Example %d failed with error", i)
 
 		require.Equal(t, []string(into), example.Result, "Example %d got unexpected result", i)

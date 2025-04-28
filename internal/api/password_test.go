@@ -26,13 +26,45 @@ func TestPasswordStrengthChecks(t *testing.T) {
 		{
 			MinLength: 6,
 			RequiredCharacters: []string{
-				"a",
-				"b",
-				"c",
+				"abc",
 			},
 			Password: "123",
 			Reasons: []string{
 				"length",
+				"characters",
+			},
+		},
+		{
+			MinLength: 6,
+			RequiredCharacters: []string{
+				"[0-9]",
+			},
+			Password: "123",
+			Reasons: []string{
+				"length",
+			},
+		},
+		{
+			MinLength: 6,
+			RequiredCharacters: []string{
+				"[0-9]",
+				"[a-zA-Z]",
+				"[!@#$%^&*]",
+			},
+			Password: "A1#",
+			Reasons: []string{
+				"length",
+			},
+		},
+		{
+			MinLength: 6,
+			RequiredCharacters: []string{
+				"[0-9]",
+				"[a-zA-Z]",
+				"[!@#$%^&*]",
+			},
+			Password: "A1b2C3",
+			Reasons: []string{
 				"characters",
 			},
 		},
@@ -98,7 +130,7 @@ func TestPasswordStrengthChecks(t *testing.T) {
 			config: &conf.GlobalConfiguration{
 				Password: conf.PasswordConfiguration{
 					MinLength:          example.MinLength,
-					RequiredCharacters: conf.PasswordRequiredCharacters(example.RequiredCharacters),
+					RequiredCharacters: conf.PasswordRequiredCharactersRegex(example.RequiredCharacters),
 				},
 			},
 		}
@@ -107,9 +139,9 @@ func TestPasswordStrengthChecks(t *testing.T) {
 
 		switch e := err.(type) {
 		case *WeakPasswordError:
-			require.Equal(t, e.Reasons, example.Reasons, "Example %d failed with wrong reasons", i)
+			require.Equal(t, example.Reasons, e.Reasons, "Example %d failed with wrong reasons", i)
 		case *HTTPError:
-			require.Equal(t, e.ErrorCode, ErrorCodeValidationFailed, "Example %d failed with wrong error code", i)
+			require.Equal(t, ErrorCodeValidationFailed, e.ErrorCode, "Example %d failed with wrong error code", i)
 		default:
 			require.NoError(t, err, "Example %d failed with error", i)
 		}

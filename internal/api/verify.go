@@ -741,7 +741,7 @@ func isOtpValid(actual, expected string, sentAt *time.Time, otpExp uint) (bool, 
 		return false, errors.New("expected token is empty")
 	}
 	if (actual != expected) && ("pkce_"+actual != expected) {
-		return false, errors.New("mismatched token")
+		return false, errors.New(fmt.Sprintf("mismatched token (%s, %s)", actual, expected))
 	}
 	return true, nil
 }

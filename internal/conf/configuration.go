@@ -170,9 +170,9 @@ func (c *SessionsConfiguration) Validate() error {
 	return nil
 }
 
-type PasswordRequiredCharacters []string
+type PasswordRequiredCharactersRegex []string
 
-func (v *PasswordRequiredCharacters) Decode(value string) error {
+func (v *PasswordRequiredCharactersRegex) Decode(value string) error {
 	parts := strings.Split(value, ":")
 
 	for i := 0; i < len(parts)-1; i += 1 {
@@ -220,7 +220,7 @@ type HIBPConfiguration struct {
 type PasswordConfiguration struct {
 	MinLength int `json:"min_length" split_words:"true"`
 
-	RequiredCharacters PasswordRequiredCharacters `json:"required_characters" split_words:"true"`
+	RequiredCharacters PasswordRequiredCharactersRegex `json:"required_characters" split_words:"true"`
 
 	HIBP HIBPConfiguration `json:"hibp"`
 }

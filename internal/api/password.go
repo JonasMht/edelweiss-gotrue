@@ -16,8 +16,10 @@ const MaxPasswordLength = 72
 // a HTTPError with a special weak_password field that encodes the Reasons
 // slice.
 type WeakPasswordError struct {
-	Message string   `json:"message,omitempty"`
-	Reasons []string `json:"reasons,omitempty"`
+	Message            string   `json:"message,omitempty"`
+	Reasons            []string `json:"reasons,omitempty"`
+	MinLength          int      `json:"min_length,omitempty"`
+	RequiredCharacters []string `json:"required_characters,omitempty"`
 }
 
 func (e *WeakPasswordError) Error() string {
@@ -64,8 +66,10 @@ func (a *API) checkPasswordStrength(ctx context.Context, password string) error 
 
 	if len(reasons) > 0 {
 		return &WeakPasswordError{
-			Message: strings.Join(messages, " "),
-			Reasons: reasons,
+			Message:            strings.Join(messages, " "),
+			Reasons:            reasons,
+			MinLength:          config.Password.MinLength,
+			RequiredCharacters: config.Password.RequiredCharacters,
 		}
 	}
 

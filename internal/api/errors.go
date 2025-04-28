@@ -217,7 +217,9 @@ func HandleResponseError(err error, w http.ResponseWriter, r *http.Request) {
 			var output struct {
 				HTTPError
 				Payload struct {
-					Reasons []string `json:"reasons,omitempty"`
+					Reasons            []string `json:"reasons,omitempty"`
+					MinLength          int      `json:"min_length,omitempty"`
+					RequiredCharacters []string `json:"required_characters,omitempty"`
 				} `json:"weak_password,omitempty"`
 			}
 
@@ -225,6 +227,8 @@ func HandleResponseError(err error, w http.ResponseWriter, r *http.Request) {
 			output.ErrorCode = ErrorCodeWeakPassword
 			output.Message = e.Message
 			output.Payload.Reasons = e.Reasons
+			output.Payload.MinLength = e.MinLength
+			output.Payload.RequiredCharacters = e.RequiredCharacters
 
 			if jsonErr := sendJSON(w, output.HTTPStatus, output); jsonErr != nil && jsonErr != context.DeadlineExceeded {
 				log.WithError(jsonErr).Warn("Failed to send JSON on ResponseWriter")

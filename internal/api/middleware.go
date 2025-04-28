@@ -61,6 +61,7 @@ func (a *API) limitHandler(lmt *limiter.Limiter) middlewareHandler {
 		c := req.Context()
 
 		if limitHeader := a.config.RateLimitHeader; limitHeader != "" {
+			fmt.Println(req.Header)
 			key := req.Header.Get(limitHeader)
 
 			if key == "" {

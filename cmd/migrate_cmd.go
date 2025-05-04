@@ -76,6 +76,13 @@ func migrate(cmd *cobra.Command, args []string) {
 		log.Fatalf("%+v", errors.Wrap(err, "checking database connection"))
 	}
 
+	if globalConfig.DB.AutoCreateNamespace {
+		_, err = db.Store.Exec(fmt.Sprintf("CREATE SCHEMA IF NOT EXISTS %s", globalConfig.DB.Namespace))
+		if err != nil {
+			log.Fatalf("%+v", errors.Wrap(err, "creating namespace"))
+		}
+	}
+
 	log.Debugf("Reading migrations from %s", globalConfig.DB.MigrationsPath)
 	mig, err := pop.NewFileMigrator(globalConfig.DB.MigrationsPath, db)
 	if err != nil {

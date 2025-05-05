@@ -79,7 +79,7 @@ type DBConfiguration struct {
 	URL       string `json:"url" envconfig:"DATABASE_URL" required:"true"`
 	Namespace string `json:"namespace" envconfig:"DB_NAMESPACE" default:"auth"`
 	// Requires create privileges on the database
-	AutoCreateNamespace bool `json:"auto_create_namespace" default:"false"`
+	AutoCreateNamespace bool `json:"auto_create_namespace" split_words:"true" default:"false"`
 	// MaxPoolSize defaults to 0 (unlimited).
 	MaxPoolSize       int           `json:"max_pool_size" split_words:"true"`
 	MaxIdlePoolSize   int           `json:"max_idle_pool_size" split_words:"true"`

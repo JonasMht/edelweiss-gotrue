@@ -12,6 +12,7 @@ import (
 
 	"github.com/fatih/structs"
 	"github.com/sethvargo/go-password/password"
+	"github.com/sirupsen/logrus"
 	"github.com/supabase/auth/internal/api/provider"
 	"github.com/supabase/auth/internal/api/sms_provider"
 	"github.com/supabase/auth/internal/crypto"
@@ -69,12 +70,14 @@ func (p *VerifyParams) Validate(r *http.Request) error {
 					return err
 				}
 				p.TokenHash = crypto.GenerateTokenHash(p.Phone, p.Token)
+				logrus.Info(fmt.Sprintf("Validating phone OTP request: (%s, %s, %s)", p.Phone, p.Token, p.TokenHash))
 			} else if isEmailOtpVerification(p) {
 				p.Email, err = validateEmail(p.Email)
 				if err != nil {
 					return unprocessableEntityError(ErrorCodeValidationFailed, "Invalid email format").WithInternalError(err)
 				}
 				p.TokenHash = crypto.GenerateTokenHash(p.Email, p.Token)
+				logrus.Info(fmt.Sprintf("Validating email OTP request: (%s, %s, %s)", p.Email, p.Token, p.TokenHash))
 			} else {
 				return badRequestError(ErrorCodeValidationFailed, "Only an email address or phone number should be provided on verify")
 			}

@@ -104,9 +104,15 @@ func IsRedirectURLValid(config *conf.GlobalConfiguration, redirectURL string) bo
 
 // getRedirectTo tries extract redirect url from header or from query params
 func getRedirectTo(r *http.Request) (reqref string) {
-	reqref = r.Header.Get("redirect_to")
+	// TODO: deprecate headers with underscore
+	reqref = r.Header.Get("redirect-to")
 	if reqref != "" {
 		return
+	} else {
+		reqref = r.Header.Get("redirect_to")
+		if reqref != "" {
+			return
+		}
 	}
 
 	if err := r.ParseForm(); err == nil {

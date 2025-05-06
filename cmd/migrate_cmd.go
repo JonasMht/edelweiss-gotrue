@@ -20,6 +20,7 @@ var migrateCmd = cobra.Command{
 
 func migrate(cmd *cobra.Command, args []string) {
 	globalConfig := loadGlobalConfig(cmd.Context())
+	logrus.Info(globalConfig)
 
 	if globalConfig.DB.Driver == "" && globalConfig.DB.URL != "" {
 		u, err := url.Parse(globalConfig.DB.URL)

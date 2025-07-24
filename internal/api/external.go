@@ -255,12 +255,12 @@ func (a *API) internalExternalProviderCallback(w http.ResponseWriter, r *http.Re
 		}
 	} else if token != nil {
 		q := url.Values{}
-		q.Set("provider_token", providerAccessToken)
-		// Because not all providers give out a refresh token
-		// See corresponding OAuth2 spec: <https://www.rfc-editor.org/rfc/rfc6749.html#section-5.1>
-		if providerRefreshToken != "" {
-			q.Set("provider_refresh_token", providerRefreshToken)
-		}
+		// q.Set("provider_token", providerAccessToken)
+		// // Because not all providers give out a refresh token
+		// // See corresponding OAuth2 spec: <https://www.rfc-editor.org/rfc/rfc6749.html#section-5.1>
+		// if providerRefreshToken != "" {
+		// 	q.Set("provider_refresh_token", providerRefreshToken)
+		// }
 
 		rurl = token.AsRedirectURL(rurl, q)
 

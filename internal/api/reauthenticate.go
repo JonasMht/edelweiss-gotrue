@@ -3,6 +3,7 @@ package api
 import (
 	"net/http"
 
+	"github.com/sirupsen/logrus"
 	"github.com/supabase/auth/internal/api/apierrors"
 	"github.com/supabase/auth/internal/api/sms_provider"
 	"github.com/supabase/auth/internal/conf"
@@ -72,9 +73,10 @@ func (a *API) verifyReauthentication(nonce string, tx *storage.Connection, confi
 		return apierrors.NewUnprocessableEntityError(apierrors.ErrorCodeReauthenticationNotValid, InvalidNonceMessage)
 	}
 	var isValid bool
+	var otpErr error
 	if user.GetEmail() != "" {
 		tokenHash := crypto.GenerateTokenHash(user.GetEmail(), nonce)
-		isValid = isOtpValid(tokenHash, user.ReauthenticationToken, user.ReauthenticationSentAt, config.Mailer.OtpExp)
+		isValid, otpErr = isOtpValid(tokenHash, user.ReauthenticationToken, user.ReauthenticationSentAt, config.Mailer.OtpExp)
 	} else if user.GetPhone() != "" {
 		if config.Sms.IsTwilioVerifyProvider() {
 			smsProvider, _ := sms_provider.GetSmsProvider(*config)
@@ -84,13 +86,16 @@ func (a *API) verifyReauthentication(nonce string, tx *storage.Connection, confi
 			return nil
 		} else {
 			tokenHash := crypto.GenerateTokenHash(user.GetPhone(), nonce)
-			isValid = isOtpValid(tokenHash, user.ReauthenticationToken, user.ReauthenticationSentAt, config.Sms.OtpExp)
+			isValid, otpErr = isOtpValid(tokenHash, user.ReauthenticationToken, user.ReauthenticationSentAt, config.Sms.OtpExp)
 		}
 	} else {
 		return apierrors.NewUnprocessableEntityError(apierrors.ErrorCodeReauthenticationNotValid, "Reauthentication requires an email or a phone number")
 	}
 	if !isValid {
-		return apierrors.NewUnprocessableEntityError(apierrors.ErrorCodeReauthenticationNotValid, InvalidNonceMessage)
+		if otpErr != nil {
+			logrus.WithError(otpErr).Warn("Reauthentication OTP validation failed")
+		}
+		return apierrors.NewUnprocessableEntityError(apierrors.ErrorCodeReauthenticationNotValid, InvalidNonceMessage).WithInternalError(otpErr)
 	}
 	if err := user.ConfirmReauthentication(tx); err != nil {
 		return apierrors.NewInternalServerError("Error during reauthentication").WithInternalError(err)

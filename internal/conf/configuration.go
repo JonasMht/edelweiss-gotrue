@@ -101,9 +101,10 @@ type DBAdvisorConfiguration struct {
 
 // DBConfiguration holds all the database related configuration.
 type DBConfiguration struct {
-	Driver    string `json:"driver" required:"true"`
-	URL       string `json:"url" envconfig:"DATABASE_URL" required:"true"`
-	Namespace string `json:"namespace" envconfig:"DB_NAMESPACE" default:"auth"`
+	Driver              string `json:"driver" required:"true"`
+	URL                 string `json:"url" envconfig:"DATABASE_URL" required:"true"`
+	Namespace           string `json:"namespace" envconfig:"DB_NAMESPACE" default:"auth"`
+	AutoCreateNamespace bool   `json:"auto_create_namespace" split_words:"true" default:"true"`
 
 	// Percentage of DB conns the auth server may use in
 	// integer form i.e.: [1, 100] -> [1%, 100%]

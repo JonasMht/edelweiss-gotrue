@@ -92,13 +92,17 @@ func HandleResponseError(err error, w http.ResponseWriter, r *http.Request) {
 			var output struct {
 				HTTPErrorResponse20240101
 				Payload struct {
-					Reasons []string `json:"reasons,omitempty"`
+					Reasons            []string `json:"reasons,omitempty"`
+					MinLength          int      `json:"min_length,omitempty"`
+					RequiredCharacters []string `json:"required_characters,omitempty"`
 				} `json:"weak_password,omitempty"`
 			}
 
 			output.Code = apierrors.ErrorCodeWeakPassword
 			output.Message = e.Message
 			output.Payload.Reasons = e.Reasons
+			output.Payload.MinLength = e.MinLength
+			output.Payload.RequiredCharacters = e.RequiredCharacters
 
 			if jsonErr := sendJSON(w, http.StatusUnprocessableEntity, output); jsonErr != nil && jsonErr != context.DeadlineExceeded {
 				log.WithError(jsonErr).Warn("Failed to send JSON on ResponseWriter")
@@ -108,7 +112,9 @@ func HandleResponseError(err error, w http.ResponseWriter, r *http.Request) {
 			var output struct {
 				HTTPError
 				Payload struct {
-					Reasons []string `json:"reasons,omitempty"`
+					Reasons            []string `json:"reasons,omitempty"`
+					MinLength          int      `json:"min_length,omitempty"`
+					RequiredCharacters []string `json:"required_characters,omitempty"`
 				} `json:"weak_password,omitempty"`
 			}
 
@@ -116,6 +122,8 @@ func HandleResponseError(err error, w http.ResponseWriter, r *http.Request) {
 			output.ErrorCode = apierrors.ErrorCodeWeakPassword
 			output.Message = e.Message
 			output.Payload.Reasons = e.Reasons
+			output.Payload.MinLength = e.MinLength
+			output.Payload.RequiredCharacters = e.RequiredCharacters
 
 			w.Header().Set("x-sb-error-code", output.ErrorCode)
 

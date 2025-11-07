@@ -28,9 +28,10 @@ type User struct {
 	Email     storage.NullString `json:"email" db:"email"`
 	IsSSOUser bool               `json:"-" db:"is_sso_user"`
 
-	EncryptedPassword *string    `json:"-" db:"encrypted_password"`
-	EmailConfirmedAt  *time.Time `json:"email_confirmed_at,omitempty" db:"email_confirmed_at"`
-	InvitedAt         *time.Time `json:"invited_at,omitempty" db:"invited_at"`
+	EncryptedPassword    *string    `json:"-" db:"encrypted_password"`
+	IsNonDefaultPassword bool       `json:"-" db:"is_non_default_password"`
+	EmailConfirmedAt     *time.Time `json:"email_confirmed_at,omitempty" db:"email_confirmed_at"`
+	InvitedAt            *time.Time `json:"invited_at,omitempty" db:"invited_at"`
 
 	Phone            storage.NullString `json:"phone" db:"phone"`
 	PhoneConfirmedAt *time.Time         `json:"phone_confirmed_at,omitempty" db:"phone_confirmed_at"`
@@ -72,6 +73,14 @@ type User struct {
 	IsAnonymous bool       `json:"is_anonymous" db:"is_anonymous"`
 
 	DONTUSEINSTANCEID uuid.UUID `json:"-" db:"instance_id"`
+}
+
+// UserAuthInfo contains authentication information about a user
+type UserAuthInfo struct {
+	HasPassword          bool `json:"has_password"`
+	IsSSOUser            bool `json:"is_sso_user"`
+	IsNonDefaultPassword bool `json:"is_non_default_password"`
+	IsSupabaseAdmin      bool `json:"is_supabase_admin"`
 }
 
 func NewUserWithPasswordHash(phone, email, passwordHash, aud string, userData map[string]interface{}) (*User, error) {

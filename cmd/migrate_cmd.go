@@ -1,10 +1,12 @@
 package cmd
 
 import (
+	"context"
 	"embed"
 	"fmt"
 	"net/url"
 	"os"
+	"time"
 
 	"github.com/gobuffalo/pop/v6"
 	"github.com/gobuffalo/pop/v6/logging"
@@ -77,6 +79,18 @@ func migrate(cmd *cobra.Command, args []string) {
 
 	if err := db.Open(); err != nil {
 		log.Fatalf("%+v", errors.Wrap(err, "checking database connection"))
+	}
+
+	if globalConfig.DB.AutoCreateNamespace {
+		log.Infof("Create schema if not exists: %s", globalConfig.DB.Namespace)
+		ctx, cancel := context.WithTimeout(context.Background(), time.Duration(time.Second*5))
+		defer cancel()
+		_, err = db.Store.ExecContext(ctx, fmt.Sprintf("CREATE SCHEMA IF NOT EXISTS %s", globalConfig.DB.Namespace))
+		if err != nil {
+			log.Fatalf("%+v", errors.Wrap(err, "creating namespace"))
+		}
+	} else {
+		log.Infof("Using existing schema: %s", globalConfig.DB.Namespace)
 	}
 
 	log.Debugf("Reading migrations from executable")

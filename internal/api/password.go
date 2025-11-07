@@ -3,6 +3,7 @@ package api
 import (
 	"context"
 	"fmt"
+	"regexp"
 	"strings"
 
 	"github.com/sirupsen/logrus"
@@ -42,12 +43,17 @@ func (a *API) checkPasswordStrength(ctx context.Context, password string) error 
 	}
 
 	for _, characterSet := range config.Password.RequiredCharacters {
-		if characterSet != "" && !strings.ContainsAny(password, characterSet) {
-			reasons = append(reasons, "characters")
-
-			messages = append(messages, fmt.Sprintf("Password should contain at least one character of each: %s.", strings.Join(config.Password.RequiredCharacters, ", ")))
-
-			break
+		if characterSet != "" {
+			re, err := regexp.Compile(characterSet)
+			if err != nil {
+				logrus.Warn(fmt.Sprintf("%s is not a valid regex. Skipping.", characterSet))
+				continue
+			}
+			if !re.MatchString(password) {
+				reasons = append(reasons, "characters")
+				messages = append(messages, fmt.Sprintf("Password should contain at least one character matching these groups of characters: %s", strings.Join(config.Password.RequiredCharacters, ", ")))
+				break
+			}
 		}
 	}
 

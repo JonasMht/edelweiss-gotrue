@@ -68,6 +68,7 @@ const (
 	ErrorCodeReauthenticationNeeded            ErrorCode = "reauthentication_needed"
 	ErrorCodeSamePassword                      ErrorCode = "same_password"
 	ErrorCodeReauthenticationNotValid          ErrorCode = "reauthentication_not_valid"
+	ErrorCodeIncorrectCurrentPassword          ErrorCode = "incorrect_current_password"
 	ErrorCodeOTPExpired                        ErrorCode = "otp_expired"
 	ErrorCodeOTPDisabled                       ErrorCode = "otp_disabled"
 	ErrorCodeIdentityNotFound                  ErrorCode = "identity_not_found"

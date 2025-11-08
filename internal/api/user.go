@@ -168,7 +168,7 @@ func (a *API) UserChangePassword(w http.ResponseWriter, r *http.Request) error {
 			return apierrors.NewInternalServerError("Error during password storage").WithInternalError(terr)
 		}
 
-		if terr := models.NewAuditLogEntry(r, tx, user, models.UserUpdatePasswordAction, "", nil); terr != nil {
+		if terr := models.NewAuditLogEntry(config.AuditLog, r, tx, user, models.UserUpdatePasswordAction, "", nil); terr != nil {
 			return terr
 		}
 

@@ -64,6 +64,7 @@ type RequestParams interface {
 		SmsParams |
 		Web3GrantParams |
 		UserUpdateParams |
+		UserChangePasswordParams |
 		VerifyFactorParams |
 		VerifyParams |
 		adminUserUpdateFactorParams |

@@ -1,0 +1,22 @@
+{
+  "permissions": {
+    "allow": [
+      "Bash(git branch:*)",
+      "Bash(git rev-parse:*)",
+      "Bash(git fetch:*)",
+      "Bash(git checkout:*)",
+      "Bash(git merge-base:*)",
+      "Bash(git log:*)",
+      "Bash(git pull:*)",
+      "Bash(git commit:*)",
+      "Bash(tac:*)",
+      "Bash(for commit in 2d6ec37 c58b94a ea99d5c ed02a80 bfad335 8eeed99)",
+      "Bash(do echo \"=== Commit: $commit ===\" git log --oneline -1 $commit git show $commit --stat)",
+      "Bash(go test:*)",
+      "Bash(cat:*)",
+      "Bash(chmod:*)"
+    ],
+    "deny": [],
+    "ask": []
+  }
+}

@@ -27,13 +27,45 @@ func TestPasswordStrengthChecks(t *testing.T) {
 		{
 			MinLength: 6,
 			RequiredCharacters: []string{
-				"a",
-				"b",
-				"c",
+				"abc",
 			},
 			Password: "123",
 			Reasons: []string{
 				"length",
+				"characters",
+			},
+		},
+		{
+			MinLength: 6,
+			RequiredCharacters: []string{
+				"[0-9]",
+			},
+			Password: "123",
+			Reasons: []string{
+				"length",
+			},
+		},
+		{
+			MinLength: 6,
+			RequiredCharacters: []string{
+				"[0-9]",
+				"[a-zA-Z]",
+				"[!@#$%^&*]",
+			},
+			Password: "A1#",
+			Reasons: []string{
+				"length",
+			},
+		},
+		{
+			MinLength: 6,
+			RequiredCharacters: []string{
+				"[0-9]",
+				"[a-zA-Z]",
+				"[!@#$%^&*]",
+			},
+			Password: "A1b2C3",
+			Reasons: []string{
 				"characters",
 			},
 		},

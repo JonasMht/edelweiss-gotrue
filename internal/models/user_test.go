@@ -2,6 +2,7 @@ package models
 
 import (
 	"context"
+	"encoding/json"
 	"testing"
 
 	"github.com/stretchr/testify/assert"
@@ -468,4 +469,69 @@ func (ts *UserTestSuite) TestAuthenticate() {
 			require.Equal(ts.T(), c.expectedHashCost, hashCost)
 		})
 	}
+}
+
+func (ts *UserTestSuite) TestIsNonDefaultPasswordDefaultValue() {
+	u, err := NewUser("", "test@example.com", "password", "test", nil)
+	require.NoError(ts.T(), err)
+	require.False(ts.T(), u.IsNonDefaultPassword, "New users should have IsNonDefaultPassword=false by default")
+
+	// Save to database
+	require.NoError(ts.T(), ts.db.Create(u))
+
+	// Reload from database
+	var reloaded User
+	require.NoError(ts.T(), ts.db.Where("id = ?", u.ID).First(&reloaded))
+	require.False(ts.T(), reloaded.IsNonDefaultPassword, "IsNonDefaultPassword should persist as false in database")
+}
+
+func (ts *UserTestSuite) TestIsNonDefaultPasswordNotInJSON() {
+	u, err := NewUser("", "test@example.com", "password", "test", nil)
+	require.NoError(ts.T(), err)
+	u.IsNonDefaultPassword = true
+
+	// Marshal to JSON
+	jsonData, err := json.Marshal(u)
+	require.NoError(ts.T(), err)
+
+	// Verify field is not in JSON (has json:"-" tag)
+	require.NotContains(ts.T(), string(jsonData), "is_non_default_password")
+	require.NotContains(ts.T(), string(jsonData), "IsNonDefaultPassword")
+}
+
+func (ts *UserTestSuite) TestIsNonDefaultPasswordUpdate() {
+	u, err := NewUser("", "test@example.com", "password", "test", nil)
+	require.NoError(ts.T(), err)
+	require.NoError(ts.T(), ts.db.Create(u))
+
+	// Update IsNonDefaultPassword to true
+	u.IsNonDefaultPassword = true
+	require.NoError(ts.T(), ts.db.Update(u))
+
+	// Reload from database
+	var reloaded User
+	require.NoError(ts.T(), ts.db.Where("id = ?", u.ID).First(&reloaded))
+	require.True(ts.T(), reloaded.IsNonDefaultPassword, "IsNonDefaultPassword should be updated to true")
+}
+
+func (ts *UserTestSuite) TestUserAuthInfoStruct() {
+	authInfo := UserAuthInfo{
+		HasPassword:          true,
+		IsSSOUser:            false,
+		IsNonDefaultPassword: true,
+		IsSupabaseAdmin:      false,
+	}
+
+	// Marshal to JSON
+	jsonData, err := json.Marshal(authInfo)
+	require.NoError(ts.T(), err)
+
+	// Unmarshal back
+	var decoded UserAuthInfo
+	require.NoError(ts.T(), json.Unmarshal(jsonData, &decoded))
+
+	require.Equal(ts.T(), authInfo.HasPassword, decoded.HasPassword)
+	require.Equal(ts.T(), authInfo.IsSSOUser, decoded.IsSSOUser)
+	require.Equal(ts.T(), authInfo.IsNonDefaultPassword, decoded.IsNonDefaultPassword)
+	require.Equal(ts.T(), authInfo.IsSupabaseAdmin, decoded.IsSupabaseAdmin)
 }

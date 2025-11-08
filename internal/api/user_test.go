@@ -630,3 +630,284 @@ func (ts *UserTestSuite) TestUserUpdatePasswordSendsNotificationEmail() {
 		})
 	}
 }
+
+func (ts *UserTestSuite) TestUserChangePasswordSuccess() {
+	u, err := models.FindUserByEmailAndAudience(ts.API.db, "test@example.com", ts.Config.JWT.Aud)
+	require.NoError(ts.T(), err)
+
+	// Set IsNonDefaultPassword to true (user has set their own password before)
+	u.IsNonDefaultPassword = true
+	require.NoError(ts.T(), ts.API.db.Update(u))
+
+	token := ts.generateAccessTokenAndSession(u)
+
+	var buffer bytes.Buffer
+	require.NoError(ts.T(), json.NewEncoder(&buffer).Encode(map[string]interface{}{
+		"current_password": "password",
+		"password":         "newpassword123",
+	}))
+
+	req := httptest.NewRequest(http.MethodPost, "http://localhost/user/change-password", &buffer)
+	req.Header.Set("Content-Type", "application/json")
+	req.Header.Set("Authorization", fmt.Sprintf("Bearer %s", token))
+
+	w := httptest.NewRecorder()
+	ts.API.handler.ServeHTTP(w, req)
+	require.Equal(ts.T(), http.StatusOK, w.Code)
+
+	// Verify password was changed
+	u, err = models.FindUserByEmailAndAudience(ts.API.db, "test@example.com", ts.Config.JWT.Aud)
+	require.NoError(ts.T(), err)
+
+	isValid, _, err := u.Authenticate(context.Background(), ts.API.db, "newpassword123",
+		ts.Config.Security.DBEncryption.DecryptionKeys, false, "")
+	require.NoError(ts.T(), err)
+	require.True(ts.T(), isValid, "New password should be valid")
+
+	// Verify IsNonDefaultPassword is still true
+	require.True(ts.T(), u.IsNonDefaultPassword)
+}
+
+func (ts *UserTestSuite) TestUserChangePasswordWrongOldPassword() {
+	u, err := models.FindUserByEmailAndAudience(ts.API.db, "test@example.com", ts.Config.JWT.Aud)
+	require.NoError(ts.T(), err)
+
+	u.IsNonDefaultPassword = true
+	require.NoError(ts.T(), ts.API.db.Update(u))
+
+	token := ts.generateAccessTokenAndSession(u)
+
+	var buffer bytes.Buffer
+	require.NoError(ts.T(), json.NewEncoder(&buffer).Encode(map[string]interface{}{
+		"current_password": "wrongpassword",
+		"password":         "newpassword123",
+	}))
+
+	req := httptest.NewRequest(http.MethodPost, "http://localhost/user/change-password", &buffer)
+	req.Header.Set("Content-Type", "application/json")
+	req.Header.Set("Authorization", fmt.Sprintf("Bearer %s", token))
+
+	w := httptest.NewRecorder()
+	ts.API.handler.ServeHTTP(w, req)
+	require.Equal(ts.T(), http.StatusUnprocessableEntity, w.Code)
+
+	var response map[string]interface{}
+	require.NoError(ts.T(), json.NewDecoder(w.Body).Decode(&response))
+	require.Contains(ts.T(), response["msg"], "Incorrect current password")
+}
+
+func (ts *UserTestSuite) TestUserChangePasswordSSOUser() {
+	// Create SSO user
+	u, err := models.NewUser("", "sso@example.com", "", ts.Config.JWT.Aud, nil)
+	require.NoError(ts.T(), err)
+	u.IsSSOUser = true
+	require.NoError(ts.T(), ts.API.db.Create(u))
+
+	token := ts.generateAccessTokenAndSession(u)
+
+	var buffer bytes.Buffer
+	require.NoError(ts.T(), json.NewEncoder(&buffer).Encode(map[string]interface{}{
+		"password": "newpassword123",
+	}))
+
+	req := httptest.NewRequest(http.MethodPost, "http://localhost/user/change-password", &buffer)
+	req.Header.Set("Content-Type", "application/json")
+	req.Header.Set("Authorization", fmt.Sprintf("Bearer %s", token))
+
+	w := httptest.NewRecorder()
+	ts.API.handler.ServeHTTP(w, req)
+	require.Equal(ts.T(), http.StatusUnprocessableEntity, w.Code)
+	require.Contains(ts.T(), w.Body.String(), "SSO user")
+}
+
+func (ts *UserTestSuite) TestUserChangePasswordAnonymousUser() {
+	// Create anonymous user
+	u, err := models.NewUser("", "", "", ts.Config.JWT.Aud, nil)
+	require.NoError(ts.T(), err)
+	u.IsAnonymous = true
+	require.NoError(ts.T(), ts.API.db.Create(u))
+
+	token := ts.generateAccessTokenAndSession(u)
+
+	var buffer bytes.Buffer
+	require.NoError(ts.T(), json.NewEncoder(&buffer).Encode(map[string]interface{}{
+		"password": "newpassword123",
+	}))
+
+	req := httptest.NewRequest(http.MethodPost, "http://localhost/user/change-password", &buffer)
+	req.Header.Set("Content-Type", "application/json")
+	req.Header.Set("Authorization", fmt.Sprintf("Bearer %s", token))
+
+	w := httptest.NewRecorder()
+	ts.API.handler.ServeHTTP(w, req)
+	require.Equal(ts.T(), http.StatusUnprocessableEntity, w.Code)
+	require.Contains(ts.T(), w.Body.String(), "anonymous user")
+}
+
+func (ts *UserTestSuite) TestUserChangePasswordSamePassword() {
+	u, err := models.FindUserByEmailAndAudience(ts.API.db, "test@example.com", ts.Config.JWT.Aud)
+	require.NoError(ts.T(), err)
+
+	u.IsNonDefaultPassword = true
+	require.NoError(ts.T(), ts.API.db.Update(u))
+
+	token := ts.generateAccessTokenAndSession(u)
+
+	var buffer bytes.Buffer
+	require.NoError(ts.T(), json.NewEncoder(&buffer).Encode(map[string]interface{}{
+		"current_password": "password",
+		"password":         "password", // Same as old
+	}))
+
+	req := httptest.NewRequest(http.MethodPost, "http://localhost/user/change-password", &buffer)
+	req.Header.Set("Content-Type", "application/json")
+	req.Header.Set("Authorization", fmt.Sprintf("Bearer %s", token))
+
+	w := httptest.NewRecorder()
+	ts.API.handler.ServeHTTP(w, req)
+	require.Equal(ts.T(), http.StatusUnprocessableEntity, w.Code)
+	require.Contains(ts.T(), w.Body.String(), "should be different")
+}
+
+func (ts *UserTestSuite) TestUserChangePasswordNoCurrentPasswordForDefaultPassword() {
+	u, err := models.FindUserByEmailAndAudience(ts.API.db, "test@example.com", ts.Config.JWT.Aud)
+	require.NoError(ts.T(), err)
+
+	// User has default password (admin-set or first-time)
+	u.IsNonDefaultPassword = false
+	require.NoError(ts.T(), ts.API.db.Update(u))
+
+	token := ts.generateAccessTokenAndSession(u)
+
+	var buffer bytes.Buffer
+	require.NoError(ts.T(), json.NewEncoder(&buffer).Encode(map[string]interface{}{
+		// No current_password required for default passwords
+		"password": "newpassword123",
+	}))
+
+	req := httptest.NewRequest(http.MethodPost, "http://localhost/user/change-password", &buffer)
+	req.Header.Set("Content-Type", "application/json")
+	req.Header.Set("Authorization", fmt.Sprintf("Bearer %s", token))
+
+	w := httptest.NewRecorder()
+	ts.API.handler.ServeHTTP(w, req)
+	require.Equal(ts.T(), http.StatusOK, w.Code)
+
+	// Verify IsNonDefaultPassword is now true
+	u, err = models.FindUserByEmailAndAudience(ts.API.db, "test@example.com", ts.Config.JWT.Aud)
+	require.NoError(ts.T(), err)
+	require.True(ts.T(), u.IsNonDefaultPassword, "IsNonDefaultPassword should be set to true after user changes password")
+}
+
+func (ts *UserTestSuite) TestUserChangePasswordWeakPassword() {
+	ts.Config.Password.MinLength = 10
+
+	u, err := models.FindUserByEmailAndAudience(ts.API.db, "test@example.com", ts.Config.JWT.Aud)
+	require.NoError(ts.T(), err)
+
+	u.IsNonDefaultPassword = true
+	require.NoError(ts.T(), ts.API.db.Update(u))
+
+	token := ts.generateAccessTokenAndSession(u)
+
+	var buffer bytes.Buffer
+	require.NoError(ts.T(), json.NewEncoder(&buffer).Encode(map[string]interface{}{
+		"current_password": "password",
+		"password":         "weak", // Too short
+	}))
+
+	req := httptest.NewRequest(http.MethodPost, "http://localhost/user/change-password", &buffer)
+	req.Header.Set("Content-Type", "application/json")
+	req.Header.Set("Authorization", fmt.Sprintf("Bearer %s", token))
+
+	w := httptest.NewRecorder()
+	ts.API.handler.ServeHTTP(w, req)
+	require.Equal(ts.T(), http.StatusUnprocessableEntity, w.Code)
+
+	var response map[string]interface{}
+	require.NoError(ts.T(), json.NewDecoder(w.Body).Decode(&response))
+	require.NotNil(ts.T(), response["weak_password"])
+}
+
+func (ts *UserTestSuite) TestUserAuthInfoGet() {
+	u, err := models.FindUserByEmailAndAudience(ts.API.db, "test@example.com", ts.Config.JWT.Aud)
+	require.NoError(ts.T(), err)
+
+	// Set user properties
+	u.IsNonDefaultPassword = true
+	require.NoError(ts.T(), ts.API.db.Update(u))
+
+	token := ts.generateAccessTokenAndSession(u)
+
+	req := httptest.NewRequest(http.MethodGet, "http://localhost/user/auth-info", nil)
+	req.Header.Set("Authorization", fmt.Sprintf("Bearer %s", token))
+
+	w := httptest.NewRecorder()
+	ts.API.handler.ServeHTTP(w, req)
+	require.Equal(ts.T(), http.StatusOK, w.Code)
+
+	var authInfo map[string]interface{}
+	require.NoError(ts.T(), json.NewDecoder(w.Body).Decode(&authInfo))
+
+	require.True(ts.T(), authInfo["has_password"].(bool))
+	require.False(ts.T(), authInfo["is_sso_user"].(bool))
+	require.True(ts.T(), authInfo["is_non_default_password"].(bool))
+	require.False(ts.T(), authInfo["is_supabase_admin"].(bool))
+}
+
+func (ts *UserTestSuite) TestUserAuthInfoGetSSOUser() {
+	// Create SSO user without password
+	u, err := models.NewUser("", "sso@example.com", "", ts.Config.JWT.Aud, nil)
+	require.NoError(ts.T(), err)
+	u.IsSSOUser = true
+	require.NoError(ts.T(), ts.API.db.Create(u))
+
+	token := ts.generateAccessTokenAndSession(u)
+
+	req := httptest.NewRequest(http.MethodGet, "http://localhost/user/auth-info", nil)
+	req.Header.Set("Authorization", fmt.Sprintf("Bearer %s", token))
+
+	w := httptest.NewRecorder()
+	ts.API.handler.ServeHTTP(w, req)
+	require.Equal(ts.T(), http.StatusOK, w.Code)
+
+	var authInfo map[string]interface{}
+	require.NoError(ts.T(), json.NewDecoder(w.Body).Decode(&authInfo))
+
+	require.False(ts.T(), authInfo["has_password"].(bool), "SSO user should not have password")
+	require.True(ts.T(), authInfo["is_sso_user"].(bool))
+	require.False(ts.T(), authInfo["is_non_default_password"].(bool))
+}
+
+func (ts *UserTestSuite) TestUserAuthInfoGetDefaultPassword() {
+	u, err := models.FindUserByEmailAndAudience(ts.API.db, "test@example.com", ts.Config.JWT.Aud)
+	require.NoError(ts.T(), err)
+
+	// User has default password (not changed yet)
+	u.IsNonDefaultPassword = false
+	require.NoError(ts.T(), ts.API.db.Update(u))
+
+	token := ts.generateAccessTokenAndSession(u)
+
+	req := httptest.NewRequest(http.MethodGet, "http://localhost/user/auth-info", nil)
+	req.Header.Set("Authorization", fmt.Sprintf("Bearer %s", token))
+
+	w := httptest.NewRecorder()
+	ts.API.handler.ServeHTTP(w, req)
+	require.Equal(ts.T(), http.StatusOK, w.Code)
+
+	var authInfo map[string]interface{}
+	require.NoError(ts.T(), json.NewDecoder(w.Body).Decode(&authInfo))
+
+	require.True(ts.T(), authInfo["has_password"].(bool))
+	require.False(ts.T(), authInfo["is_non_default_password"].(bool), "User with default password should have is_non_default_password=false")
+}
+
+func (ts *UserTestSuite) TestUserAuthInfoGetRequiresAuth() {
+	// Test without authorization token
+	req := httptest.NewRequest(http.MethodGet, "http://localhost/user/auth-info", nil)
+
+	w := httptest.NewRecorder()
+	ts.API.handler.ServeHTTP(w, req)
+	require.Equal(ts.T(), http.StatusUnauthorized, w.Code)
+}

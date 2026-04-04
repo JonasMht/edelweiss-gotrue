@@ -3,6 +3,7 @@ package cmd
 import (
 	"context"
 	"embed"
+	"fmt"
 	"net/url"
 	"os"
 	"time"

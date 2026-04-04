@@ -183,7 +183,7 @@ func (a *API) verifyGet(w http.ResponseWriter, r *http.Request, params *VerifyPa
 		}
 
 		if isImplicitFlow(flowType) {
-			token, terr = a.issueRefreshToken(r, tx, user, models.OTP, grantParams)
+			token, terr = a.issueRefreshToken(r, w.Header(), tx, user, models.OTP, grantParams)
 			if terr != nil {
 				return terr
 			}
@@ -283,7 +283,7 @@ func (a *API) verifyPost(w http.ResponseWriter, r *http.Request, params *VerifyP
 		if terr := tx.Reload(user); terr != nil {
 			return terr
 		}
-		token, terr = a.issueRefreshToken(r, tx, user, models.OTP, grantParams)
+		token, terr = a.issueRefreshToken(r, w.Header(), tx, user, models.OTP, grantParams)
 		if terr != nil {
 			return terr
 		}
@@ -508,6 +508,8 @@ func (a *API) prepErrorRedirectURL(err *HTTPError, r *http.Request, rurl string,
 		u.RawQuery = q.Encode()
 	}
 	// Left as hash fragment to comply with spec.
+	// Add Supabase Auth identifier to help clients distinguish Supabase Auth redirects
+	hq.Set("sb", "")
 	u.Fragment = hq.Encode()
 	return u.String(), nil
 }
@@ -524,6 +526,8 @@ func (a *API) prepRedirectURL(message string, rurl string, flowType models.FlowT
 		q.Set("message", message)
 	}
 	u.RawQuery = q.Encode()
+	// Add Supabase Auth identifier to help clients distinguish Supabase Auth redirects
+	hq.Set("sb", "")
 	u.Fragment = hq.Encode()
 	return u.String(), nil
 }

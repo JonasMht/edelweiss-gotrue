@@ -1,0 +1,69 @@
+# Sync upstream AppFlowy auth (GoTrue) releases.
+name: Upstream Sync
+
+on:
+  schedule:
+    - cron: '0 3 * * 1'
+  workflow_dispatch:
+
+permissions:
+  contents: write
+  pull-requests: write
+
+jobs:
+  sync:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+        with:
+          fetch-depth: 0
+
+      - name: Configure git
+        run: |
+          git config user.name "edelweiss-bot"
+          git config user.email "bot@edelweissai.org"
+
+      - name: Add upstream remote
+        run: |
+          git remote add upstream https://github.com/AppFlowy-IO/auth.git || true
+          git fetch upstream --tags
+
+      - name: Find latest upstream tag
+        id: latest
+        run: |
+          LATEST=$(git tag -l --sort=-v:refname | grep -E '^[0-9]+\.[0-9]+' | head -1)
+          echo "tag=$LATEST" >> "$GITHUB_OUTPUT"
+
+      - name: Check if already merged
+        id: check
+        run: |
+          TAG="${{ steps.latest.outputs.tag }}"
+          if git merge-base --is-ancestor "upstream/$TAG" HEAD 2>/dev/null; then
+            echo "skip=true" >> "$GITHUB_OUTPUT"
+          else
+            echo "skip=false" >> "$GITHUB_OUTPUT"
+          fi
+
+      - name: Create sync branch and PR
+        if: steps.check.outputs.skip == 'false'
+        env:
+          GH_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+        run: |
+          TAG="${{ steps.latest.outputs.tag }}"
+          BRANCH="upstream-sync/${TAG}"
+          git checkout -b "$BRANCH"
+          if git merge "upstream/tags/$TAG" --no-edit; then
+            git push origin "$BRANCH"
+            gh pr create \
+              --title "chore: sync upstream GoTrue auth ${TAG}" \
+              --body "Automated sync of upstream tag \`${TAG}\`." \
+              --base main --head "$BRANCH" --label "upstream-sync"
+          else
+            git add -A
+            git commit -m "chore: sync upstream ${TAG} (CONFLICTS)"
+            git push origin "$BRANCH"
+            gh pr create \
+              --title "chore: sync upstream GoTrue auth ${TAG} (conflicts)" \
+              --body "⚠️ Merge conflicts — manual resolution required." \
+              --base main --head "$BRANCH" --label "upstream-sync,needs-manual-merge"
+          fi
